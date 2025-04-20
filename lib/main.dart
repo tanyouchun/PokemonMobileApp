@@ -28,8 +28,9 @@ class Pokemon {
   final String name;
   final String imageUrl;
   final String type;
+  bool isFavorite;
 
-  Pokemon({required this.name, required this.imageUrl, required this.type});
+  Pokemon({required this.name, required this.imageUrl, required this.type, this.isFavorite = false,});
 }
 
 List<Pokemon> pokemonList = [
@@ -107,18 +108,39 @@ class _HomePageState extends State<HomePage> {
   String searchQuery = '';
   String selectedType = 'All';
 
+  void toggleFavorite(Pokemon p) {
+    setState(() {
+      p.isFavorite = !p.isFavorite;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     List<Pokemon> filtered = pokemonList.where((p) {
       final matchesName = p.name.toLowerCase().contains(searchQuery.toLowerCase());
-      final matchesType = selectedType == 'All' || p.type == selectedType;
+
+      bool matchesType;
+      if (selectedType == 'All') {
+        matchesType = true;
+      } else if (selectedType == 'Favourite') {
+        matchesType = p.isFavorite;
+      } else {
+        matchesType = p.type == selectedType;
+      }
+
       return matchesName && matchesType;
     }).toList();
+
+     filtered.sort((a, b) {
+      if (a.isFavorite && !b.isFavorite) return -1;
+      if (!a.isFavorite && b.isFavorite) return 1;
+      return 0;
+    });
 
     return Scaffold(
       appBar: AppBar(
         title: Text('🎉 Pokémon Fun!'),
-        backgroundColor: Colors.pink,
+        backgroundColor: Colors.red,
       ),
       body: Column(
         children: [
@@ -127,7 +149,7 @@ class _HomePageState extends State<HomePage> {
             selectedType: selectedType,
             onChanged: (val) => setState(() => selectedType = val),
           ),
-          Expanded(child: PokemonGrid(pokemonList: filtered)),
+          Expanded(child: PokemonGrid(pokemonList: filtered, onFavoriteToggle: toggleFavorite)),
         ],
       ),
     );
@@ -176,7 +198,7 @@ class AppSearchBar extends StatelessWidget {
       child: TextField(
         onChanged: onChanged,
         decoration: InputDecoration(
-          hintText: '🔍 Search Pokémon...',
+          hintText: '🔍 Search for your pokemon',
           filled: true,
           fillColor: Colors.pink.shade50,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -192,6 +214,7 @@ class AppTypeFilter extends StatelessWidget {
 
   final List<String> types = [
   'All',
+  'Favourite',
   'Electric',
   'Fire',
   'Water',
@@ -221,8 +244,9 @@ class AppTypeFilter extends StatelessWidget {
 
 class PokemonGrid extends StatelessWidget {
   final List<Pokemon> pokemonList;
+  final Function(Pokemon) onFavoriteToggle;
 
-  const PokemonGrid({super.key, required this.pokemonList});
+  const PokemonGrid({super.key, required this.pokemonList, required this.onFavoriteToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -230,20 +254,25 @@ class PokemonGrid extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 0.8, 
       ),
       itemCount: pokemonList.length,
       itemBuilder: (context, index) {
-        return PokemonCard(pokemon: pokemonList[index]);
+       return PokemonCard(
+          pokemon: pokemonList[index],
+          onFavoriteToggle: () => onFavoriteToggle(pokemonList[index]),
+       );
       },
     );
   }
 }
 class PokemonCard extends StatelessWidget {
   final Pokemon pokemon;
+  final VoidCallback onFavoriteToggle;
 
-  const PokemonCard({super.key, required this.pokemon});
+  const PokemonCard({super.key, required this.pokemon, required this.onFavoriteToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -254,13 +283,23 @@ class PokemonCard extends StatelessWidget {
       ),
       child: Card(
         color: Colors.amber.shade100,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 2,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.network(pokemon.imageUrl, height: 60),
-            SizedBox(height: 10),
+            Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  icon: Icon(
+                    pokemon.isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: Colors.red,
+                  ),
+                  onPressed: onFavoriteToggle,
+                ),
+            ),
+            Image.network(pokemon.imageUrl, height: 100),
+            SizedBox(height: 4),
             Text(
               pokemon.name,
               textAlign: TextAlign.center,
